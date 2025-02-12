@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -8,6 +9,13 @@ import (
 	"net/http"
 	"os/exec"
 	"strings"
+	"runtime/debug"
+)
+
+var (
+	Version    string
+	CommitHash string
+	BuildTime  string
 )
 
 type WhoamiResult struct {
@@ -74,6 +82,22 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, string(responseJson))
 }
 
+
+func getVersionInfo() string {
+    if info, ok := debug.ReadBuildInfo(); ok {
+        for _, setting := range info.Settings {
+            switch setting.Key {
+            case "vcs.revision":
+                CommitHash = setting.Value[:7]
+            case "vcs.time":
+                BuildTime = setting.Value
+            }
+        }
+    }
+    return fmt.Sprintf("Version: %s\nCommit: %s\nBuild Time: %s", 
+        Version, CommitHash, BuildTime)
+}
+
 func main() {
 	var port = ":2122"
 	fmt.Println("Starting Tollgate - Whoami")
@@ -83,6 +107,16 @@ func main() {
 	log.Fatal(http.ListenAndServe(port, nil))
 
 	fmt.Println("Shutting down Tollgate - Whoami")
+
+	// Add a version flag
+	versionFlag := flag.Bool("version", false, "Print version information")
+	flag.Parse()
+
+	if *versionFlag {
+		fmt.Println(getVersionInfo())
+		return
+	}
+
 }
 
 func getIP(r *http.Request) string {
