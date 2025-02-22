@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -25,40 +24,22 @@ type WhoamiResult struct {
 	Mac          string
 }
 
-func getMacByIp(ip string) (string, error) {
-	cmd := exec.Command("ndsctl", "json", ip)
+func getMacAddress(ipAddress string) (string, error) {
+	cmdIn := `cat /tmp/dhcp.leases | cut -f 2,3,4 -s -d" " | grep -i ` + ipAddress + ` | cut -f 1 -s -d" "`
+	commandOutput, err := exec.Command("sh", "-c", cmdIn).Output()
 
-	commandOutput, err := cmd.CombinedOutput()
 	var commandOutputString = string(commandOutput)
 	if err != nil {
-		fmt.Println(err, "Error when trying to find mac address for ip "+ip+"\n Command output: "+commandOutputString)
-
-		if strings.Contains(commandOutputString, "ndsctl: opennds probably not yet started (Error: Connection refused)") {
-			return "", errors.New("Internal Error: OpenNDS not running")
-		}
-
-		return "", err
+		fmt.Println(err, "Error when getting client's mac address. Command output: "+commandOutputString)
+		return "nil", err
 	}
 
-	var jsonMap map[string]interface{}
-	err = json.Unmarshal([]byte(commandOutputString), &jsonMap)
-	if err != nil {
-		return "", err
-	}
-
-	var mac = jsonMap["mac"]
-
-	if mac == nil {
-		log.Println("ndsctl did not return a MAC address for ip " + ip)
-		return "", errors.New("Internal Error: OpenNDS did not return a MAC address for ip " + ip)
-	}
-
-	return mac.(string), nil
+	return strings.Trim(commandOutputString, "\n"), nil
 }
 
 func handler(w http.ResponseWriter, r *http.Request) {
 	var ip = getIP(r)
-	var mac, err = getMacByIp(ip)
+	var mac, err = getMacAddress(ip)
 
 	log.Println(ip)
 
