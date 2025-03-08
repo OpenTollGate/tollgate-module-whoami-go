@@ -1,20 +1,12 @@
 package main
 
 import (
-	"flag"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"os/exec"
 	"strings"
-	"runtime/debug"
-)
-
-var (
-	Version    string
-	CommitHash string
-	BuildTime  string
 )
 
 type WhoamiResult struct {
@@ -23,6 +15,8 @@ type WhoamiResult struct {
 	Ip           string
 	Mac          string
 }
+
+var tollgateMerchantPubkey string = "c1f4c025e746fd307203ac3d1a1886e343bea76ceec5e286c96fb353be6cadea"
 
 func getMacAddress(ipAddress string) (string, error) {
 	cmdIn := `cat /tmp/dhcp.leases | cut -f 2,3,4 -s -d" " | grep -i ` + ipAddress + ` | cut -f 1 -s -d" "`
@@ -41,7 +35,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	var ip = getIP(r)
 	var mac, err = getMacAddress(ip)
 
-	log.Println(ip)
+	log.Println("ip", ip, "mac", mac)
 
 	var result WhoamiResult
 	if err != nil {
@@ -63,20 +57,8 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, string(responseJson))
 }
 
-
-func getVersionInfo() string {
-    if info, ok := debug.ReadBuildInfo(); ok {
-        for _, setting := range info.Settings {
-            switch setting.Key {
-            case "vcs.revision":
-                CommitHash = setting.Value[:7]
-            case "vcs.time":
-                BuildTime = setting.Value
-            }
-        }
-    }
-    return fmt.Sprintf("Version: %s\nCommit: %s\nBuild Time: %s", 
-        Version, CommitHash, BuildTime)
+func handlePubkey(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprintf(w, tollgateMerchantPubkey)
 }
 
 func main() {
@@ -85,19 +67,10 @@ func main() {
 	fmt.Println("Listening on port", port)
 
 	http.HandleFunc("/", handler)
+	http.HandleFunc("/pubkey", handlePubkey)
 	log.Fatal(http.ListenAndServe(port, nil))
 
 	fmt.Println("Shutting down Tollgate - Whoami")
-
-	// Add a version flag
-	versionFlag := flag.Bool("version", false, "Print version information")
-	flag.Parse()
-
-	if *versionFlag {
-		fmt.Println(getVersionInfo())
-		return
-	}
-
 }
 
 func getIP(r *http.Request) string {

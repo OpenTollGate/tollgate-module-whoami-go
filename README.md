@@ -24,7 +24,7 @@ env GOOS=linux GOARCH=arm64 go build -o whoami -trimpath -ldflags="-s -w"
 scp -O whoami root@192.168.1.1:/root/whoami # X.X == Router IP
 ```
 
-## Required Firewall rules
+## Required Firewall rules 
 
 First, test if the whoami is up by going to your router's ip on port `2122`. You should get a JSON response with your IP and mac address.
 
